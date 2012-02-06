@@ -1,0 +1,11 @@
+{application, smoke_test, [
+    {description, "smoke_test"},
+    {id, "smoke_test"},
+    {vsn, "0.1"},
+    {modules, [
+        smt
+    ]},
+    {registered, []},
+    {applications, [kernel, stdlib]}
+]}.
+
