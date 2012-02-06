@@ -5,6 +5,12 @@
     {modules, [
         smt
     ]},
+    {env, [
+        {url, "http://localhost:8086/echo"},
+        {count, 500},
+        {hz, 1},
+        {seconds, 20}
+    ]},
     {registered, []},
     {applications, [kernel, stdlib]}
 ]}.
