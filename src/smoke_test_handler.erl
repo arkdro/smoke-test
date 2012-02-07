@@ -206,9 +206,9 @@ run_smoke_test(#sth{children = Ch} = St) ->
 %%
 %% @doc spawns one child
 %%
--spec do_one_child(#sth{}, [pid()]) -> [pid()].
+-spec prepare_one_child(#sth{}, [pid()]) -> [pid()].
 
-do_one_child(St, Ch) ->
+prepare_one_child(St, Ch) ->
     Ref = make_ref(),
     Params = [
               {id, Ref},
@@ -216,30 +216,7 @@ do_one_child(St, Ch) ->
               {hz, St#sth.hz},
               {seconds, St#sth.seconds}
              ],
-    Res = supervisor:start_child(smoke_test_child_supervisor, [Params]),
-    mpln_p_debug:pr({?MODULE, 'run_smoke_test res', ?LINE, Res},
-                    St#sth.debug, handler_child, 5),
-    case Res of
-        {ok, Pid} ->
-            add_child(Ch, Pid, Ref);
-        {ok, Pid, _Info} ->
-            add_child(Ch, Pid, Ref);
-        _ ->
-            mpln_p_debug:pr({?MODULE, 'do_one_command_real res', ?LINE, 'error',
-                             Params, Res}, St#sth.debug, run, 1),
-            Ch
-    end.
-
-%%-----------------------------------------------------------------------------
-%%
-%% @doc stores new process data in a list
-%%
--spec add_child([pid()], pid(), reference()) -> [pid()].
-
-add_child(Children, Pid, Id) ->
-    Mref = erlang:monitor(process, Pid),
-    Ch = #chi{pid = Pid, id = Id, start = now(), mon=Mref},
-    [Ch | Children].
+    smoke_test_misc:do_one_child(smoke_test_child_supervisor, Ch, Params).
 
 %%-----------------------------------------------------------------------------
 %%
