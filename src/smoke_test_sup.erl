@@ -55,8 +55,12 @@ init(_Args) ->
         smoke_test_child_sup, {smoke_test_child_sup, start_link, []},
         transient, infinity, supervisor, [smoke_test_child_sup]
         },
+    Rsup = {
+        smoke_test_req_sup, {smoke_test_req_sup, start_link, []},
+        transient, infinity, supervisor, [smoke_test_req_sup]
+        },
     {ok, {{one_for_one, ?RESTARTS, ?SECONDS},
-        [Sup, Handler]}}.
+        [Rsup, Sup, Handler]}}.
 
 %%%----------------------------------------------------------------------------
 %%% API
