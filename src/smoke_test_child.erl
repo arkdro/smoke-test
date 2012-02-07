@@ -45,6 +45,7 @@
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
+-include("child.hrl").
 -include("smoke_test.hrl").
 
 -define(TC, 1).
@@ -54,11 +55,9 @@
 %%%----------------------------------------------------------------------------
 init(Params) ->
     C = prepare_all(Params),
-    mpln_p_debug:pr({?MODULE, 'init', ?LINE, C#child.id, self(), Params, C},
-        C#child.debug, config, 4),
     mpln_p_debug:pr({?MODULE, 'init done', ?LINE, C#child.id, self()},
         C#child.debug, run, 2),
-    {ok, C, ?TC}. % to immediate fall into timeout
+    {ok, C}.
 
 %%-----------------------------------------------------------------------------
 %%
@@ -76,27 +75,25 @@ handle_call(status, _From, St) ->
     {reply, St, St};
 
 handle_call(_N, _From, St) ->
-    mpln_p_debug:pr({?MODULE, 'other', ?LINE, _N, St#child.id, self()},
-        St#child.debug, run, 2),
-    New = main_action(St),
-    {reply, {error, unknown_request}, New}.
+    {reply, {error, unknown_request}, St}.
 
 %%-----------------------------------------------------------------------------
 %%
 %% Handling cast messages
 %% @since 2012-02-07 14:42
 %%
--spec handle_cast(any(), #child{}) -> any().
+-spec handle_cast(any(), #child{}) -> {stop, normal, #child{}}
+                                          | {noreply, #child{}}.
 
 handle_cast(stop, St) ->
     {stop, normal, St};
 
 handle_cast(_, St) ->
-    New = main_action(St),
-    {noreply, New, ?TC}.
+    {noreply, St}.
 
 %%-----------------------------------------------------------------------------
 terminate(_, #child{id=Id} = State) ->
+    send_stat(State),
     mpln_p_debug:pr({?MODULE, terminate, ?LINE, Id, self()},
         State#child.debug, run, 2),
     ok.
@@ -105,19 +102,28 @@ terminate(_, #child{id=Id} = State) ->
 %%
 %% Handling all non call/cast messages
 %%
--spec handle_info(any(), #child{}) -> any().
+-spec handle_info(any(), #child{}) -> {noreply, #child{}}.
 
-handle_info(timeout, State) ->
-    mpln_p_debug:pr({?MODULE, info_timeout, ?LINE, State#child.id, self()},
-        State#child.debug, run, 6),
-    New = main_action(State),
-    {noreply, New, ?TC};
+handle_info(periodic_check, State) ->
+    mpln_p_debug:pr({?MODULE, 'info_periodic_check', ?LINE},
+                    State#child.debug, run, 6),
+    New = periodic_check(State),
+    {noreply, New};
+
+handle_info({'DOWN', Mref, _, _, _}, #child{job=#chi{mon=Mref} = J, stat=Stat}
+            = St) ->
+    mpln_p_debug:pr({?MODULE, info_down, ?LINE, St#child.id, self()},
+        St#child.debug, run, 2),
+    Now = now(),
+    Dur = timer:now_diff(Now, J#chi.start) / 1000.0,
+    Nstat = smoke_test_misc:update_stat(Stat, Dur),
+    New = St#child{stat=Nstat},
+    {noreply, New};
 
 handle_info(_Req, State) ->
     mpln_p_debug:pr({?MODULE, other, ?LINE, _Req, State#child.id, self()},
         State#child.debug, run, 2),
-    New = main_action(State),
-    {noreply, New, ?TC}.
+    {noreply, State}.
 
 %%-----------------------------------------------------------------------------
 code_change(_Old_vsn, State, _Extra) ->
@@ -144,27 +150,91 @@ stop() ->
 %%% Internal functions
 %%%----------------------------------------------------------------------------
 %%
-%% @doc processes command, then sends stop message to itself
-%% @since 2012-02-07 14:42
-%%
--spec main_action(#child{}) -> #child{}.
-
-main_action(State) ->
-    State.
-
-%%-----------------------------------------------------------------------------
-%%
 %% @doc prepares necessary things
 %%
 -spec prepare_all(list()) -> #child{}.
 
 prepare_all(L) ->
+    Hz = proplists:get_value(hz, L),
+    Seconds = proplists:get_value(seconds, L),
+    Cnt = Seconds * Hz,
     #child{
           id = proplists:get_value(id, L),
           debug = proplists:get_value(debug, L, []),
           url = proplists:get_value(url, L),
-          hz = proplists:get_value(hz, L),
-          seconds = proplists:get_value(seconds, L)
+          hz = Hz,
+          seconds = Seconds,
+          cnt = Cnt,
+          timer = erlang:send_after(trunc(1 + 1000/Hz), self(), periodic_check)
         }.
+
+%%-----------------------------------------------------------------------------
+%%
+%% @doc 
+%%
+-spec periodic_check(#child{}) -> #child{}.
+
+periodic_check(#child{cnt=C} = State) when C =< 0 ->
+    gen_server:cast(self(), stop),
+    State;
+
+periodic_check(#child{cnt=Cnt, hz=Hz, timer=Ref} = State) ->
+    mpln_misc_run:cancel_timer(Ref),
+    Stp = stop_job(State),
+    New = add_job(Stp),
+    Nref = erlang:send_after(trunc(1 + 1000/Hz), self(), periodic_check),
+    New#child{cnt=Cnt-1, timer=Nref}.
+
+%%-----------------------------------------------------------------------------
+%%
+%% @doc terminates job if it still works
+%%
+stop_job(#child{job=#chi{pid=P}} = State) when is_pid(P) ->
+    exit(P, kill),
+    State;
+
+stop_job(State) ->
+    State.
+
+%%-----------------------------------------------------------------------------
+%%
+%% @doc starts new job and stores job info into state
+%%
+-spec add_job(#child{}) -> #child{}.
+
+add_job(#child{hz=Hz} = St) ->
+    Ref = make_ref(),
+    Time = trunc(1 + 1000 / Hz),
+    case prepare_one_job(St, Ref, Time) of
+        [C] ->
+            St#child{job=C};
+        _ -> % error
+            St#child{job=undefined}
+        end.
+
+%%-----------------------------------------------------------------------------
+%%
+%% @doc creates parameters and starts job process with the parameters
+%%
+-spec prepare_one_job(#child{}, reference(), non_neg_integer()) -> [#chi{}].
+
+prepare_one_job(St, Ref, Time) ->
+    Params = [
+              {id, Ref},
+              {parent, self()},
+              {url, St#child.url},
+              {time, Time}
+             ],
+    smoke_test_misc:do_one_child(St#child.debug,
+                                 smoke_test_request_supervisor,
+                                 [], Params).
+
+%%-----------------------------------------------------------------------------
+%%
+%% @doc sends job statistic to the handler
+%%
+send_stat(#child{stat=Stat}) ->
+    #stat{count=Count, sum=Sum, sum_sq=Sq} = Stat,
+    smoke_test_handler:send_stat(Count, Sum, Sq).
 
 %%-----------------------------------------------------------------------------
