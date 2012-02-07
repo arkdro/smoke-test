@@ -11,7 +11,11 @@
         {hz, 1},
         {seconds, 20}
     ]},
-    {registered, []},
+    {registered, [
+        smoke_test_handler,
+        smoke_test_supervisor,
+        smoke_test_child_supervisor
+    ]},
     {applications, [kernel, stdlib]}
 ]}.
 
