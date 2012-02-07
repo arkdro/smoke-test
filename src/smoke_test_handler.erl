@@ -38,7 +38,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
 -export([terminate/2, code_change/3]).
 
--export([stat_q/0, st/0]).
+-export([stat_q/0, st/0, send_stat/3]).
 
 %%%----------------------------------------------------------------------------
 %%% Includes
@@ -48,6 +48,7 @@
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
+-include("child.hrl").
 -include("smoke_test.hrl").
 
 %%%----------------------------------------------------------------------------
@@ -90,6 +91,13 @@ handle_call(_N, _From, St) ->
 
 handle_cast(stop, St) ->
     {stop, normal, St};
+
+
+handle_cast({smoke_test_result, Count, Sum, Sq}, St) ->
+    mpln_p_debug:pr({?MODULE, 'cast result', ?LINE, Count, Sum, Sq},
+                    St#sth.debug, run, 2),
+    New = store_test_result(St, Count, Sum, Sq),
+    {noreply, New};
 
 handle_cast(_N, St) ->
     mpln_p_debug:pr({?MODULE, 'cast other', ?LINE, _N}, St#sth.debug, run, 2),
@@ -171,6 +179,15 @@ stat_q() ->
 st() ->
     gen_server:call(?MODULE, run_smoke_test).
 
+%%-----------------------------------------------------------------------------
+%%
+%% @doc sends one child statistic to gen_server
+%%
+-spec send_stat(non_neg_integer(), float(), float()) -> ok.
+
+send_stat(Count, Sum, Sq) ->
+    gen_server:cast(?MODULE, {smoke_test_result, Count, Sum, Sq}).
+
 %%%----------------------------------------------------------------------------
 %%% Internal functions
 %%%----------------------------------------------------------------------------
@@ -197,7 +214,7 @@ prepare_all() ->
 
 run_smoke_test(#sth{children = Ch} = St) ->
     F = fun(_, Acc) ->
-                do_one_child(St, Acc)
+                prepare_one_child(St, Acc)
         end,
     Res = lists:foldl(F, [], lists:duplicate(St#sth.count, true)),
     St#sth{children = Res ++ Ch}.
@@ -216,7 +233,8 @@ prepare_one_child(St, Ch) ->
               {hz, St#sth.hz},
               {seconds, St#sth.seconds}
              ],
-    smoke_test_misc:do_one_child(smoke_test_child_supervisor, Ch, Params).
+    smoke_test_misc:do_one_child(St#sth.debug, smoke_test_child_supervisor,
+                                 Ch, Params).
 
 %%-----------------------------------------------------------------------------
 %%
@@ -232,5 +250,14 @@ clean_child(#sth{children = Ch} = St, Mref) ->
     mpln_p_debug:pr({?MODULE, 'clean_child', ?LINE, _Done, Cont},
                     St#sth.debug, run, 4),
     St#sth{children=Cont}.
+
+%%-----------------------------------------------------------------------------
+%%
+%% @doc stores result of test into the state
+%%
+store_test_result(#sth{stat=Stat} = St, Count, Sum, Sq) ->
+    #stat{count=Count0, sum=Sum0, sum_sq=Sq0} = Stat,
+    Nstat = Stat#stat{count=Count0+Count, sum=Sum0+Sum, sum_sq=Sq0+Sq},
+    St#sth{stat=Nstat}.
 
 %%-----------------------------------------------------------------------------
