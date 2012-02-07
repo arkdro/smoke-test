@@ -33,44 +33,56 @@
 %%% Exports
 %%%----------------------------------------------------------------------------
 
--export([do_one_child/1]).
+-export([do_one_child/4, update_stat/2]).
 
 %%%----------------------------------------------------------------------------
 %%% Includes
 %%%----------------------------------------------------------------------------
 
 -include("child.hrl").
+-include("stat.hrl").
 
 %%%----------------------------------------------------------------------------
 %%% API
 %%%----------------------------------------------------------------------------
 %%
-%% @doc spawns a child for given supervisor
+%% @doc spawns a child for given supervisor, activates monitor for the child
 %%
--spec do_one_child(list(), atom(), [pid()], list()) -> [pid()].
+-spec do_one_child(list(), atom(), [#chi{}], list()) -> [#chi{}].
 
 do_one_child(Debug, Sup, Ch, Params) ->
+    Id = proplists:get_value(id, Params),
     Res = supervisor:start_child(Sup, [Params]),
     mpln_p_debug:pr({?MODULE, 'do_one_child res', ?LINE, Res},
                     Debug, run, 5),
     case Res of
         {ok, Pid} ->
-            add_child(Ch, Pid, Ref);
+            add_child(Ch, Pid, Id);
         {ok, Pid, _Info} ->
-            add_child(Ch, Pid, Ref);
+            add_child(Ch, Pid, Id);
         _ ->
             mpln_p_debug:pr({?MODULE, 'do_one_child res', ?LINE, 'error',
                              Params, Res}, Debug, run, 1),
             Ch
     end.
 
+%%-----------------------------------------------------------------------------
+%%
+%% @doc updates job statistic
+%%
+-spec update_stat(#stat{}, float()) -> #stat{}.
+
+update_stat(#stat{count=Count, sum=Sum, sum_sq=Sq} = Stat, Dur) ->
+    Stat#stat{count=Count+1, sum=Sum+Dur, sum_sq=Sq + Dur*Dur}.
+
 %%%----------------------------------------------------------------------------
 %%% Internal functions
 %%%----------------------------------------------------------------------------
 %%
-%% @doc stores new process data in a list
+%% @doc activates monitor for new process and stores the process data in
+%% a result list
 %%
--spec add_child([pid()], pid(), reference()) -> [pid()].
+-spec add_child([#chi{}], pid(), reference()) -> [#chi{}].
 
 add_child(Children, Pid, Id) ->
     Mref = erlang:monitor(process, Pid),
