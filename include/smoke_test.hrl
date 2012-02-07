@@ -6,19 +6,14 @@
 -record(child, {
           id              :: reference(),
           debug = []      :: [atom()],
+          timer           :: reference(),
           stat  = #stat{} :: #stat{},
           url             :: string(),
           hz              :: non_neg_integer(),
-          seconds         :: non_neg_integer()
+          seconds         :: non_neg_integer(),
+          cnt             :: non_neg_integer()
 }).
 
--record(chi, {
-          pid   :: pid(),
-          id    :: reference(),
-          start :: tuple(),
-          mon   :: reference()
-                   }).
-        
 % handler's state
 -record(sth, {
           debug    = [] :: [atom()],
