@@ -6,10 +6,11 @@
 
 -record(child, {
           id              :: reference(),
-          job             :: undefined | #chi{},
+          jobs = []       :: [#chi{}],
           debug = []      :: [atom()],
           timer           :: reference(),
           stat  = #stat{} :: #stat{},
+          timeout         :: non_neg_integer(), % timeout for one job
           url             :: string(),
           method          :: atom(),
           hz              :: non_neg_integer(),

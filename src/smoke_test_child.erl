@@ -105,20 +105,28 @@ terminate(_, #child{id=Id} = State) ->
 %%
 -spec handle_info(any(), #child{}) -> {noreply, #child{}}.
 
+handle_info(last_job_timeout, St) ->
+    mpln_p_debug:pr({?MODULE, 'info_last_job_timeout', ?LINE},
+                    St#child.debug, run, 3),
+    % we waited 1000/Hz + Timeout. All the jobs must be terminated by now.
+    {stop, normal, St};
+
+handle_info({job_timeout, Id}, State) ->
+    mpln_p_debug:pr({?MODULE, 'info_job_timeout', ?LINE},
+                    State#child.debug, run, 6),
+    New = stop_job(State, Id),
+    {noreply, New};
+
 handle_info(periodic_check, State) ->
     mpln_p_debug:pr({?MODULE, 'info_periodic_check', ?LINE},
                     State#child.debug, run, 6),
     New = periodic_check(State),
     {noreply, New};
 
-handle_info({'DOWN', Mref, _, _, _}, #child{job=#chi{mon=Mref} = J, stat=Stat}
-            = St) ->
-    mpln_p_debug:pr({?MODULE, info_down, ?LINE, St#child.id, self()},
-        St#child.debug, run, 2),
-    Now = now(),
-    Dur = timer:now_diff(Now, J#chi.start) / 1000.0,
-    Nstat = smoke_test_misc:update_stat(Stat, Dur),
-    New = St#child{stat=Nstat},
+handle_info({'DOWN', Mref, _, _, _}, #child{id=Id} = St) ->
+    mpln_p_debug:pr({?MODULE, info_down, ?LINE, Id, self(), Mref},
+                    St#child.debug, run, 2),
+    New = job_done(St, Mref),
     {noreply, New};
 
 handle_info(_Req, State) ->
@@ -162,7 +170,9 @@ prepare_all(L) ->
     #child{
           id = proplists:get_value(id, L),
           debug = proplists:get_value(debug, L, []),
+          timeout = proplists:get_value(timeout, L),
           url = proplists:get_value(url, L),
+          method = proplists:get_value(method, L),
           hz = Hz,
           seconds = Seconds,
           cnt = Cnt,
@@ -175,14 +185,13 @@ prepare_all(L) ->
 %%
 -spec periodic_check(#child{}) -> #child{}.
 
-periodic_check(#child{cnt=C} = State) when C =< 0 ->
-    gen_server:cast(self(), stop),
+periodic_check(#child{cnt=0, timeout=Timeout} = State) ->
+    erlang:send_after(Timeout, self(), last_job_timeout),
     State;
 
 periodic_check(#child{cnt=Cnt, hz=Hz, timer=Ref} = State) ->
     mpln_misc_run:cancel_timer(Ref),
-    Stp = stop_job(State),
-    New = add_job(Stp),
+    New = add_job(State),
     Nref = erlang:send_after(trunc(1 + 1000/Hz), self(), periodic_check),
     New#child{cnt=Cnt-1, timer=Nref}.
 
@@ -190,12 +199,20 @@ periodic_check(#child{cnt=Cnt, hz=Hz, timer=Ref} = State) ->
 %%
 %% @doc terminates job if it still works
 %%
-stop_job(#child{job=#chi{pid=P}} = State) when is_pid(P) ->
-    exit(P, kill),
-    State;
-
-stop_job(State) ->
-    State.
+stop_job(#child{jobs=Jobs} = St, Id) ->
+    F = fun(#chi{id=X}) ->
+                X == Id
+        end,
+    {Found, Rest} = lists:partition(F, Jobs),
+    case Found of
+        [] ->
+            ok;
+        [C] ->
+            smoke_test_misc:stop_child(St#child.debug,
+                                       smoke_test_request_supervisor,
+                                       C#chi.pid)
+    end,
+    St#child{jobs=Rest}.
 
 %%-----------------------------------------------------------------------------
 %%
@@ -203,14 +220,14 @@ stop_job(State) ->
 %%
 -spec add_job(#child{}) -> #child{}.
 
-add_job(#child{hz=Hz} = St) ->
+add_job(#child{jobs=Jobs, timeout=T} = St) ->
     Ref = make_ref(),
-    Time = trunc(1 + 1000 / Hz),
-    case prepare_one_job(St, Ref, Time) of
+    case prepare_one_job(St, Ref, T) of
         [C] ->
-            St#child{job=C};
+            erlang:send_after(T, self(), {job_timeout, C#chi.id}),
+            St#child{jobs=[C|Jobs]};
         _ -> % error
-            St#child{job=undefined}
+            St
         end.
 
 %%-----------------------------------------------------------------------------
@@ -224,7 +241,9 @@ prepare_one_job(St, Ref, Time) ->
               {id, Ref},
               {parent, self()},
               {url, St#child.url},
-              {time, Time}
+              {method, St#child.method},
+              {params, make_params(St)},
+              {timeout, Time}
              ],
     smoke_test_misc:do_one_child(St#child.debug,
                                  smoke_test_request_supervisor,
@@ -237,5 +256,35 @@ prepare_one_job(St, Ref, Time) ->
 send_stat(#child{stat=Stat}) ->
     #stat{count=Count, sum=Sum, sum_sq=Sq} = Stat,
     smoke_test_handler:send_stat(Count, Sum, Sq).
+
+%%-----------------------------------------------------------------------------
+make_params(St) ->
+    []
+    .
+
+%%-----------------------------------------------------------------------------
+%%
+%% @doc updates stat for the job and removes it from the list of jobs
+%%
+job_done(#child{jobs=Jobs} = St, Mref) ->
+    F = fun(#chi{mon=X}) ->
+                X == Mref
+        end,
+    {Found, Rest} = lists:partition(F, Jobs),
+    Stu = update_stat(St, Found),
+    Stu#child{jobs=Rest}.
+
+%%-----------------------------------------------------------------------------
+%%
+%% @doc updates stat for the job
+%%
+update_stat(St, []) ->
+    St;
+
+update_stat(#child{stat=Stat} = St, [J]) ->
+    Now = now(),
+    Dur = timer:now_diff(Now, J#chi.start) / 1000.0,
+    Nstat = smoke_test_misc:update_stat(Stat, Dur),
+    St#child{stat=Nstat}.
 
 %%-----------------------------------------------------------------------------

@@ -7,7 +7,7 @@
           url             :: string(),
           method          :: string(),
           params = []     :: list(),
-          time            :: non_neg_integer()
+          timeout         :: non_neg_integer()
                              }).
         
 -endif.

@@ -47,7 +47,7 @@
 %%% API
 %%%----------------------------------------------------------------------------
 
-add_job(#req{method=Msrc, params=Params, url=Url, time=Time, id=Id} = St) ->
+add_job(#req{method=Msrc, params=Params, url=Url, timeout=Time, id=Id} = St) ->
     Hdr = [],
     Method = clean_method(Msrc),
     Req = make_req(Method, Url, Hdr, Params),

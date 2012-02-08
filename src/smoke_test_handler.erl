@@ -252,7 +252,7 @@ run_smoke_test(#sth{children = Ch} = St) ->
 %%
 %% @doc spawns one child
 %%
--spec prepare_one_child(#sth{}, [pid()]) -> [pid()].
+-spec prepare_one_child(#sth{}, [#chi{}]) -> [#chi{}].
 
 prepare_one_child(St, Ch) ->
     Ref = make_ref(),
