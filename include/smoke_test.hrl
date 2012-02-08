@@ -11,6 +11,7 @@
           timer           :: reference(),
           stat  = #stat{} :: #stat{},
           url             :: string(),
+          method          :: atom(),
           hz              :: non_neg_integer(),
           seconds         :: non_neg_integer(),
           cnt = 0         :: non_neg_integer()
@@ -22,6 +23,7 @@
           debug    = []  :: [atom()],
           children = []  :: [pid()],
           count          :: non_neg_integer(),
+          timeout        :: non_neg_integer(), % timeout for one job
           url            :: string(),
           hz             :: non_neg_integer(),
           seconds        :: non_neg_integer()
