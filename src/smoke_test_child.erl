@@ -55,6 +55,7 @@
 %%%----------------------------------------------------------------------------
 init(Params) ->
     C = prepare_all(Params),
+    process_flag(trap_exit, true), % to send stats
     mpln_p_debug:pr({?MODULE, 'init done', ?LINE, C#child.id, self()},
         C#child.debug, run, 2),
     {ok, C}.
