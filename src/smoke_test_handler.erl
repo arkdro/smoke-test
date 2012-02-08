@@ -215,6 +215,7 @@ reset_stat() ->
 -spec prepare_all() -> #sth{}.
 
 prepare_all() ->
+    [application:start(X) || X <- [sasl, public_key, crypto, ssl, inets]],
     L = application:get_all_env('smoke_test'),
     Log = proplists:get_value(log, L),
     prepare_log(Log),
