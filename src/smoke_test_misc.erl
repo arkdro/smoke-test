@@ -33,7 +33,7 @@
 %%% Exports
 %%%----------------------------------------------------------------------------
 
--export([do_one_child/4, update_stat/2]).
+-export([do_one_child/4, update_stat/2, stop_child/3]).
 
 %%%----------------------------------------------------------------------------
 %%% Includes
@@ -46,7 +46,24 @@
 %%% API
 %%%----------------------------------------------------------------------------
 %%
+%% @since 2012-02-07 17:53
+%%
+-spec stop_child(list(), atom(), pid()) -> any().
+
+stop_child(Debug, Sup, Pid) ->
+    case supervisor:terminate_child(Sup, Pid) of
+        ok ->
+            ok;
+        {error, _Reason} = Res ->
+            mpln_p_debug:pr({?MODULE, 'stop_child error', ?LINE, Sup, Pid, Res},
+                            Debug, run, 1),
+            Res
+    end.
+
+%%-----------------------------------------------------------------------------
+%%
 %% @doc spawns a child for given supervisor, activates monitor for the child
+%% @since 2012-02-07 17:53
 %%
 -spec do_one_child(list(), atom(), [#chi{}], list()) -> [#chi{}].
 
