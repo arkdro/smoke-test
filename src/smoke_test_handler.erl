@@ -223,6 +223,7 @@ prepare_all() ->
           url = proplists:get_value(url, L, "http://localhost:8086/echo"),
           hz = proplists:get_value(hz, L, 1),
           count = proplists:get_value(count, L, 500),
+          timeout = proplists:get_value(timeout, L, 10000),
           seconds = proplists:get_value(seconds, L, 20)
         }.
 
@@ -258,6 +259,7 @@ prepare_one_child(St, Ch) ->
               {id, Ref},
               {url, St#sth.url},
               {hz, St#sth.hz},
+              {timeout, St#sth.timeout},
               {seconds, St#sth.seconds}
              ],
     smoke_test_misc:do_one_child(St#sth.debug, smoke_test_child_supervisor,
