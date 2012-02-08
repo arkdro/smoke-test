@@ -38,7 +38,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
 -export([terminate/2, code_change/3]).
 
--export([get_stat/0, st/0, send_stat/3]).
+-export([get_stat/0, st/0, send_stat/3, reset_stat/0]).
 
 %%%----------------------------------------------------------------------------
 %%% Includes
@@ -97,6 +97,9 @@ handle_call(_N, _From, St) ->
 handle_cast(stop, St) ->
     {stop, normal, St};
 
+handle_cast(reset_stat, St) ->
+    New = St#sth{stat=#stat{}},
+    {noreply, New};
 
 handle_cast({smoke_test_result, Count, Sum, Sq}, St) ->
     mpln_p_debug:pr({?MODULE, 'cast result', ?LINE, Count, Sum, Sq},
@@ -193,6 +196,15 @@ st() ->
 
 send_stat(Count, Sum, Sq) ->
     gen_server:cast(?MODULE, {smoke_test_result, Count, Sum, Sq}).
+
+%%-----------------------------------------------------------------------------
+%%
+%% @doc resets child statistic
+%%
+-spec reset_stat() -> ok.
+
+reset_stat() ->
+    gen_server:cast(?MODULE, reset_stat).
 
 %%%----------------------------------------------------------------------------
 %%% Internal functions
