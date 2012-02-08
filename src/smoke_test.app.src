@@ -3,14 +3,26 @@
     {id, "smoke_test"},
     {vsn, "0.1"},
     {modules, [
-        smt
+        smoke_test_app,
+        smoke_test_child,
+        smoke_test_child_sup,
+        smoke_test_handler,
+        smoke_test_misc,
+        smoke_test_req,
+        smoke_test_req_sup,
+        smoke_test_sup
     ]},
     {env, [
         {url, "http://localhost:8086/echo"},
-        {count, 500},
+        {count, 2},
         {hz, 1},
-        {seconds, 20}
+        {seconds, 5},
+        {log, "/home/user1/work/smoke-test/log/st"},
+        {debug, [
+            {run, 6}
+        ]}
     ]},
+    {mod, {smoke_test_app,[]}},
     {registered, [
         smoke_test_handler,
         smoke_test_supervisor,
