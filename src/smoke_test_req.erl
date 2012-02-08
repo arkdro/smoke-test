@@ -41,7 +41,7 @@
 %%% Includes
 %%%----------------------------------------------------------------------------
 
--include("smoke_test.hrl").
+-include("req.hrl").
 
 -define(TC, 1).
 
@@ -50,18 +50,18 @@
 %%%----------------------------------------------------------------------------
 init(Params) ->
     C = prepare_all(Params),
-    mpln_p_debug:pr({?MODULE, 'init done', ?LINE, C#child.id, self()},
-        C#child.debug, run, 2),
-    {ok, C}.
+    mpln_p_debug:pr({?MODULE, 'init done', ?LINE, C#req.id, self()},
+        C#req.debug, run, 2),
+    {ok, C, ?TC}.
 
 %%-----------------------------------------------------------------------------
 %%
 %% Handling call messages
 %% @since 2012-02-07 14:42
 %%
--spec handle_call(any(), any(), #child{}) ->
-                         {stop, normal, ok, #child{}}
-                             | {reply, any(), #child{}}.
+-spec handle_call(any(), any(), #req{}) ->
+                         {stop, normal, ok, #req{}}
+                             | {reply, any(), #req{}}.
 
 handle_call(stop, _From, St) ->
     {stop, normal, ok, St};
@@ -77,8 +77,8 @@ handle_call(_N, _From, St) ->
 %% Handling cast messages
 %% @since 2012-02-07 14:42
 %%
--spec handle_cast(any(), #child{}) -> {stop, normal, #child{}}
-                                          | {noreply, #child{}}.
+-spec handle_cast(any(), #req{}) -> {stop, normal, #req{}}
+                                          | {noreply, #req{}}.
 
 handle_cast(stop, St) ->
     {stop, normal, St};
@@ -87,26 +87,25 @@ handle_cast(_, St) ->
     {noreply, St}.
 
 %%-----------------------------------------------------------------------------
-terminate(_, #child{id=Id} = State) ->
+terminate(_, #req{id=Id} = State) ->
     mpln_p_debug:pr({?MODULE, terminate, ?LINE, Id, self()},
-        State#child.debug, run, 2),
+        State#req.debug, run, 2),
     ok.
 
 %%-----------------------------------------------------------------------------
 %%
 %% Handling all non call/cast messages
 %%
--spec handle_info(any(), #child{}) -> {noreply, #child{}}.
+-spec handle_info(any(), #req{}) -> {noreply, #req{}}.
 
-handle_info(periodic_check, State) ->
-    mpln_p_debug:pr({?MODULE, 'info_periodic_check', ?LINE},
-                    State#child.debug, run, 6),
-    New = periodic_check(State),
+handle_info(timeout, State) ->
+    mpln_p_debug:pr({?MODULE, 'timeout', ?LINE}, State#req.debug, run, 6),
+    New = add_job(State),
     {noreply, New};
 
 handle_info(_Req, State) ->
-    mpln_p_debug:pr({?MODULE, other, ?LINE, _Req, State#child.id, self()},
-        State#child.debug, run, 2),
+    mpln_p_debug:pr({?MODULE, other, ?LINE, _Req, State#req.id, self()},
+        State#req.debug, run, 2),
     {noreply, State}.
 
 %%-----------------------------------------------------------------------------
@@ -128,7 +127,7 @@ start_link(Params) ->
 
 %%-----------------------------------------------------------------------------
 stop() ->
-    gen_server:call(?MODULE, stop).
+    gen_server:call(self(), stop).
 
 %%%----------------------------------------------------------------------------
 %%% Internal functions
@@ -136,42 +135,21 @@ stop() ->
 %%
 %% @doc prepares necessary things
 %%
--spec prepare_all(list()) -> #child{}.
+-spec prepare_all(list()) -> #req{}.
 
 prepare_all(L) ->
-    Hz = proplists:get_value(hz, L),
-    Seconds = proplists:get_value(seconds, L),
-    Cnt = Seconds * Hz,
-    #child{
+    #req{
           id = proplists:get_value(id, L),
           debug = proplists:get_value(debug, L, []),
           url = proplists:get_value(url, L),
-          hz = Hz,
-          seconds = Seconds,
-          cnt = Cnt,
-          timer = erlang:send_after(trunc(1 + 1000/Hz), self(), periodic_check)
+          method = proplists:get_value(method, L),
+          timeout = proplists:get_value(timeout, L)
         }.
 
 %%-----------------------------------------------------------------------------
-%%
-%% @doc 
-%% @since 2012-02-07 14:42
-%%
--spec periodic_check(#child{}) -> #child{}.
-
-periodic_check(#child{cnt=C} = State) when C =< 0 ->
-    gen_server:cast(self(), stop),
-    State;
-
-periodic_check(#child{cnt=Cnt, hz=Hz, timer=Ref} = State) ->
-    mpln_misc_run:cancel_timer(Ref),
-    New = add_job(State),
-    Nref = erlang:send_after(trunc(1 + 1000/Hz), self(), periodic_check),
-    New#child{cnt=Cnt-1, timer=Nref}.
-
-%%-----------------------------------------------------------------------------
 add_job(St) ->
-    St
-    .
+    smoke_test_job:add_job(St),
+    gen_server:cast(self(), stop),
+    St.
 
 %%-----------------------------------------------------------------------------
