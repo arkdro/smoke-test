@@ -1,22 +1,24 @@
 {application, smoke_test, [
     {description, "smoke_test"},
     {id, "smoke_test"},
-    {vsn, "0.1"},
+    {vsn, "0.2"},
     {modules, [
         smoke_test_app,
         smoke_test_child,
         smoke_test_child_sup,
         smoke_test_handler,
+        smoke_test_job,
         smoke_test_misc,
         smoke_test_req,
         smoke_test_req_sup,
         smoke_test_sup
     ]},
     {env, [
-        {url, "http://localhost:8086/echo"},
-        {count, 2},
+        {url, "http://localhost:8143/test_group_limit.yaws"},
+        {count, 1},
         {hz, 1},
-        {seconds, 5},
+        {seconds, 3},
+        {timeout, 6000}, % timeout for one job, ms.
         {log, "/home/user1/work/smoke-test/log/st"},
         {debug, [
             {run, 6}
