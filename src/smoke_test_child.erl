@@ -239,7 +239,7 @@ add_job(#child{jobs=Jobs, timeout=T} = St) ->
 prepare_one_job(St, Ref, Time) ->
     Params = [
               {id, Ref},
-              {parent, self()},
+              {debug, St#child.debug},
               {url, St#child.url},
               {method, St#child.method},
               {params, make_params(St)},

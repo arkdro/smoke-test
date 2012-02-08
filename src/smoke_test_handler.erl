@@ -259,6 +259,7 @@ prepare_one_child(St, Ch) ->
     Params = [
               {id, Ref},
               {url, St#sth.url},
+              {debug, St#sth.debug},
               {hz, St#sth.hz},
               {timeout, St#sth.timeout},
               {seconds, St#sth.seconds}
