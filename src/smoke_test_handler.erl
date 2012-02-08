@@ -38,7 +38,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
 -export([terminate/2, code_change/3]).
 
--export([stat_q/0, st/0, send_stat/3]).
+-export([get_stat/0, st/0, send_stat/3]).
 
 %%%----------------------------------------------------------------------------
 %%% Includes
@@ -56,6 +56,7 @@
 %%%----------------------------------------------------------------------------
 init(_) ->
     St = prepare_all(),
+    process_flag(trap_exit, true), % to log stats
     mpln_p_debug:pr({?MODULE, 'init done', ?LINE}, St#sth.debug, run, 1),
     {ok, St}.
 %%-----------------------------------------------------------------------------
@@ -77,6 +78,10 @@ handle_call(stop, _From, St) ->
 
 handle_call(status, _From, St) ->
     {reply, St, St};
+
+handle_call(get_stat, _From, St) ->
+    Res = get_result_stat(St),
+    {reply, Res, St};
 
 handle_call(_N, _From, St) ->
     mpln_p_debug:pr({?MODULE, 'other', ?LINE, _N}, St#sth.debug, run, 2),
@@ -108,6 +113,7 @@ handle_cast(_N, St) ->
 %% @doc Note: it won't be called unless trap_exit is set
 %%
 terminate(_, State) ->
+    log_stats(State),
     mpln_p_debug:pr({?MODULE, 'terminate', ?LINE}, State#sth.debug, run, 1),
     ok.
 
@@ -165,10 +171,10 @@ stop() ->
 %%
 %% @doc asks smoke_test_handler for state of queues
 %%
--spec stat_q() -> string().
+-spec get_stat() -> string().
 
-stat_q() ->
-    gen_server:call(?MODULE, stat_q).
+get_stat() ->
+    gen_server:call(?MODULE, get_stat).
 
 %%-----------------------------------------------------------------------------
 %%
@@ -198,6 +204,8 @@ send_stat(Count, Sum, Sq) ->
 
 prepare_all() ->
     L = application:get_all_env('smoke_test'),
+    Log = proplists:get_value(log, L),
+    prepare_log(Log),
     #sth{
           debug = proplists:get_value(debug, L, []),
           url = proplists:get_value(url, L, "http://localhost:8086/echo"),
@@ -205,6 +213,13 @@ prepare_all() ->
           count = proplists:get_value(count, L, 500),
           seconds = proplists:get_value(seconds, L, 20)
         }.
+
+%%-----------------------------------------------------------------------------
+prepare_log(undefined) ->
+    ok;
+
+prepare_log(Log) ->
+    mpln_misc_log:prepare_log(Log).
 
 %%-----------------------------------------------------------------------------
 %%
@@ -259,5 +274,37 @@ store_test_result(#sth{stat=Stat} = St, Count, Sum, Sq) ->
     #stat{count=Count0, sum=Sum0, sum_sq=Sq0} = Stat,
     Nstat = Stat#stat{count=Count0+Count, sum=Sum0+Sum, sum_sq=Sq0+Sq},
     St#sth{stat=Nstat}.
+
+%%-----------------------------------------------------------------------------
+get_result_stat(#sth{stat=Stat}) ->
+    #stat{count=Count, sum=Sum, sum_sq=Sq} = Stat,
+    {Avg, Dev_ub, Dev_b} =
+        if Count > 1 ->
+                Avg0 = Sum / Count,
+                % unbiased
+                Var_ub = ((Sq / Count) - Avg0 * Avg0) * Count / (Count-1),
+                % biased
+                Var_b = (Sq / Count) - Avg0 * Avg0,
+                Dev_ub0 = math:sqrt(Var_ub),
+                Dev_b0 = math:sqrt(Var_b),
+                {Avg0, Dev_ub0, Dev_b0};
+           Count > 0 ->
+                Avg0 = Sum / Count,
+                Var_b = (Sq / Count) - Avg0 * Avg0,
+                Dev_b0 = math:sqrt(Var_b),
+                {Avg0, undefined, Dev_b0};
+           true ->
+                {undefined, undefined, undefined}
+        end,
+    {{Count, Sum, Sq}, {Avg, Dev_ub, Dev_b}}.
+
+%%-----------------------------------------------------------------------------
+log_stats(#sth{stat=Stat} = State) ->
+    #stat{count=Count, sum=Sum, sum_sq=Sq} = Stat,
+    mpln_p_debug:pr({?MODULE, 'log_stats', ?LINE, 'src', Count, Sum, Sq},
+                    State#sth.debug, run, 1),
+    Res = get_result_stat(State),
+    mpln_p_debug:pr({?MODULE, 'log_stats', ?LINE, 'res', Res},
+                    State#sth.debug, run, 1).
 
 %%-----------------------------------------------------------------------------
