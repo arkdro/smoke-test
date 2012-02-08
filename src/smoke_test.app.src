@@ -1,7 +1,7 @@
 {application, smoke_test, [
     {description, "smoke_test"},
     {id, "smoke_test"},
-    {vsn, "0.2"},
+    {vsn, "0.3"},
     {modules, [
         smoke_test_app,
         smoke_test_child,
