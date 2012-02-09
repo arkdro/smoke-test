@@ -38,7 +38,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
 -export([terminate/2, code_change/3]).
 
--export([get_stat/0, st/0, send_stat/3, reset_stat/0]).
+-export([get_stat/0, st/0, st/5, send_stat/3, reset_stat/0]).
 
 %%%----------------------------------------------------------------------------
 %%% Includes
@@ -71,6 +71,13 @@ init(_) ->
 handle_call(run_smoke_test, _From, St) ->
     mpln_p_debug:pr({?MODULE, 'run_smoke_test', ?LINE}, St#sth.debug, run, 2),
     Res = run_smoke_test(St),
+    {reply, Res, St};
+
+handle_call({run_smoke_test, Url, Count, Hz, Dur, Timeout}, _From, St) ->
+    mpln_p_debug:pr({?MODULE, 'run_smoke_test par', ?LINE, Url, Count, Hz,
+                     Dur, Timeout}, St#sth.debug, run, 2),
+    Res = run_smoke_test(St#sth{url=Url, count=Count, hz=Hz, seconds=Dur,
+                               timeout=Timeout}),
     {reply, Res, St};
 
 handle_call(stop, _From, St) ->
@@ -187,6 +194,12 @@ get_stat() ->
 
 st() ->
     gen_server:call(?MODULE, run_smoke_test).
+
+-spec st(string(), non_neg_integer(), non_neg_integer(),
+        non_neg_integer(), non_neg_integer()) -> string().
+
+st(Url, Count, Hz, Dur, Timeout) ->
+    gen_server:call(?MODULE, {run_smoke_test, Url, Count, Hz, Dur, Timeout}).
 
 %%-----------------------------------------------------------------------------
 %%
