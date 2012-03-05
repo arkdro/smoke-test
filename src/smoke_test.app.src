@@ -14,8 +14,8 @@
         smoke_test_sup
     ]},
     {env, [
-        {host, "http://localhost:8143"},
-        {url, "/test_group_limit.yaws"},
+        {host, "http://localhost:8081"},
+        {url, "/xhr"},
         {serv_tag, "echo"},
         {count, 1},
         {hz, 1},
