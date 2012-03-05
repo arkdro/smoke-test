@@ -5,6 +5,6 @@ tests:
     - one session per client
     - clients pour messages to server, receive own messages and
       messages from others
-    - sessions terminated after X time
+    - sessions are terminated after X time
     - result: sent, received, time, speed
 
