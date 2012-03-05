@@ -49,6 +49,7 @@
 -include("smoke_test.hrl").
 
 -define(TC, 1).
+-define(BASE_LEN, 6).
 
 %%%----------------------------------------------------------------------------
 %%% gen_server callbacks
@@ -167,11 +168,17 @@ prepare_all(L) ->
     Hz = proplists:get_value(hz, L),
     Seconds = proplists:get_value(seconds, L),
     Cnt = Seconds * Hz,
+    Bstr = base64:encode_to_string(crypto:rand_bytes(?BASE_LEN)),
+    Base = string:strip(Bstr, both, $=),
     #child{
+          serv_tag = proplists:get_value(serv_tag, L),
+          ses_sn = 0,
+          ses_base = Base,
           id = proplists:get_value(id, L),
           debug = proplists:get_value(debug, L, []),
           timeout = proplists:get_value(timeout, L),
           url = proplists:get_value(url, L),
+          host = proplists:get_value(host, L),
           method = proplists:get_value(method, L),
           hz = Hz,
           seconds = Seconds,
@@ -220,12 +227,12 @@ stop_job(#child{jobs=Jobs} = St, Id) ->
 %%
 -spec add_job(#child{}) -> #child{}.
 
-add_job(#child{jobs=Jobs, timeout=T} = St) ->
+add_job(#child{jobs=Jobs, timeout=T, ses_sn=Sn} = St) ->
     Ref = make_ref(),
     case prepare_one_job(St, Ref, T) of
         [C] ->
             erlang:send_after(T, self(), {job_timeout, C#chi.id}),
-            St#child{jobs=[C|Jobs]};
+            St#child{jobs=[C|Jobs], ses_sn=Sn+1};
         _ -> % error
             St
         end.
@@ -236,10 +243,16 @@ add_job(#child{jobs=Jobs, timeout=T} = St) ->
 %%
 -spec prepare_one_job(#child{}, reference(), non_neg_integer()) -> [#chi{}].
 
-prepare_one_job(St, Ref, Time) ->
+prepare_one_job(#child{serv_tag=Tag, ses_sn=Sn, ses_base=Sbase,
+                      host=Host} = St,
+                Ref, Time) ->
     Params = [
               {id, Ref},
+              {serv_tag, Tag},
+              {ses_sn, Sn},
+              {ses_base, Sbase},
               {debug, St#child.debug},
+              {host, Host},
               {url, St#child.url},
               {method, St#child.method},
               {params, make_params(St)},

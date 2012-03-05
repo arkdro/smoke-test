@@ -14,7 +14,9 @@
         smoke_test_sup
     ]},
     {env, [
-        {url, "http://localhost:8143/test_group_limit.yaws"},
+        {host, "http://localhost:8143"},
+        {url, "/test_group_limit.yaws"},
+        {serv_tag, "echo"},
         {count, 1},
         {hz, 1},
         {seconds, 3},
@@ -30,6 +32,6 @@
         smoke_test_supervisor,
         smoke_test_child_supervisor
     ]},
-    {applications, [kernel, stdlib]}
+    {applications, [kernel, stdlib, inets, ssl]}
 ]}.
 

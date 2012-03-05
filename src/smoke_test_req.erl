@@ -140,7 +140,11 @@ stop() ->
 prepare_all(L) ->
     #req{
           id = proplists:get_value(id, L),
+          serv_tag = proplists:get_value(serv_tag, L),
+          ses_sn = proplists:get_value(ses_sn, L, 0),
+          ses_base = proplists:get_value(ses_base, L),
           debug = proplists:get_value(debug, L, []),
+          host = proplists:get_value(host, L),
           url = proplists:get_value(url, L),
           method = proplists:get_value(method, L),
           timeout = proplists:get_value(timeout, L)

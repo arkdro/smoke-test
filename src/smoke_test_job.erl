@@ -47,10 +47,12 @@
 %%% API
 %%%----------------------------------------------------------------------------
 
-add_job(#req{method=Msrc, params=Params, url=Url, timeout=Time, id=Id} = St) ->
+add_job(#req{method=Msrc, params=Params, url=Url, timeout=Time, id=Id,
+            host=Host, serv_tag=Tag, ses_sn=Sn, ses_base=Sbase} = St) ->
     Hdr = [],
+    Full_url = make_full_url(Host, Url, Tag, Sbase, Sn),
     Method = clean_method(Msrc),
-    Req = make_req(Method, Url, Hdr, Params),
+    Req = make_req(Method, Full_url, Hdr, Params),
     mpln_p_debug:pr({?MODULE, add_job, ?LINE, Req, Id, self()},
                     St#req.debug, run, 2),
     Res = httpc:request(Method, Req,
@@ -86,5 +88,22 @@ clean_method(Src) ->
 clean_method_aux("head") -> head;
 clean_method_aux("post") -> post;
 clean_method_aux(_) ->      get.
+
+%%-----------------------------------------------------------------------------
+clean_url([$/ | Rest]) ->
+    Rest;
+clean_url(Url) ->
+    Url.
+
+%%-----------------------------------------------------------------------------
+-spec make_full_url(string(), string(), string(), string(),
+                    non_neg_integer()) -> string().
+
+make_full_url(Host, Url, Tag, Sbase, Sn) ->
+    Snstr = integer_to_list(Sn),
+    Server = "000",
+    Cu = clean_url(Url),
+    Session = string:join([Sbase, "_", Snstr], ""),
+    lists:flatten(string:join([Host, Tag, Server, Session, Cu], "/")).
 
 %%-----------------------------------------------------------------------------

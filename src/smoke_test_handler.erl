@@ -234,7 +234,9 @@ prepare_all() ->
     prepare_log(Log),
     #sth{
           debug = proplists:get_value(debug, L, []),
-          url = proplists:get_value(url, L, "http://localhost:8086/echo"),
+          host = proplists:get_value(host, L),
+          url = proplists:get_value(url, L),
+          serv_tag = proplists:get_value(serv_tag, L),
           hz = proplists:get_value(hz, L, 1),
           count = proplists:get_value(count, L, 500),
           timeout = proplists:get_value(timeout, L, 10000),
@@ -271,7 +273,9 @@ prepare_one_child(St, Ch) ->
     Ref = make_ref(),
     Params = [
               {id, Ref},
+              {host, St#sth.host},
               {url, St#sth.url},
+              {serv_tag, St#sth.serv_tag},
               {debug, St#sth.debug},
               {hz, St#sth.hz},
               {timeout, St#sth.timeout},
