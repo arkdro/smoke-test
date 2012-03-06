@@ -177,6 +177,8 @@ prepare_all(L) ->
           id = proplists:get_value(id, L),
           debug = proplists:get_value(debug, L, []),
           timeout = proplists:get_value(timeout, L),
+          job_timeout = proplists:get_value(job_timeout, L),
+          heartbeat_timeout = proplists:get_value(heartbeat_timeout, L),
           url = proplists:get_value(url, L),
           host = proplists:get_value(host, L),
           method = proplists:get_value(method, L),
@@ -244,7 +246,8 @@ add_job(#child{jobs=Jobs, timeout=T, ses_sn=Sn} = St) ->
 -spec prepare_one_job(#child{}, reference(), non_neg_integer()) -> [#chi{}].
 
 prepare_one_job(#child{serv_tag=Tag, ses_sn=Sn, ses_base=Sbase,
-                      host=Host} = St,
+                       job_timeout=Jtime, heartbeat_timeout=Htime,
+                       host=Host} = St,
                 Ref, Time) ->
     Params = [
               {id, Ref},
@@ -256,6 +259,8 @@ prepare_one_job(#child{serv_tag=Tag, ses_sn=Sn, ses_base=Sbase,
               {url, St#child.url},
               {method, St#child.method},
               {params, make_params(St)},
+              {heartbeat_timeout, Htime},
+              {job_timeout, Jtime},
               {timeout, Time}
              ],
     smoke_test_misc:do_one_child(St#child.debug,

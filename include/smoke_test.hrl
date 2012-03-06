@@ -14,6 +14,8 @@
           timer           :: reference(),
           stat  = #stat{} :: #stat{},
           timeout         :: non_neg_integer(), % timeout for one job
+          job_timeout     :: non_neg_integer(), % max job duration
+          heartbeat_timeout :: non_neg_integer(),
           url             :: string(),
           host            :: string(),
           method          :: atom(),
@@ -29,6 +31,8 @@
           children = []  :: [pid()],
           count          :: non_neg_integer(),
           timeout        :: non_neg_integer(), % timeout for one job
+          job_timeout :: non_neg_integer(), % max job duration
+          heartbeat_timeout :: non_neg_integer(),
           host           :: string(),
           url            :: string(),
           serv_tag       :: string(),

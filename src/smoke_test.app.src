@@ -21,6 +21,7 @@
         {hz, 1},
         {seconds, 3},
         {timeout, 6000}, % timeout for one job, ms.
+        {heartbeat_timeout, 25100},
         {log, "/home/user1/work/smoke-test/log/st"},
         {debug, [
             {run, 6}

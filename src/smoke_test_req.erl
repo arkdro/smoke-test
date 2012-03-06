@@ -147,6 +147,8 @@ prepare_all(L) ->
           host = proplists:get_value(host, L),
           url = proplists:get_value(url, L),
           method = proplists:get_value(method, L),
+          heartbeat_timeout = proplists:get_value(heartbeat_timeout, L),
+          job_timeout = proplists:get_value(job_timeout, L),
           timeout = proplists:get_value(timeout, L)
         }.
 

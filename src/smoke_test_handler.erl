@@ -240,6 +240,8 @@ prepare_all() ->
           hz = proplists:get_value(hz, L, 1),
           count = proplists:get_value(count, L, 500),
           timeout = proplists:get_value(timeout, L, 10000),
+          job_timeout = proplists:get_value(job_timeout, L, 120000),
+          heartbeat_timeout = proplists:get_value(heartbeat_timeout, L, 25000),
           seconds = proplists:get_value(seconds, L, 20)
         }.
 
@@ -279,6 +281,8 @@ prepare_one_child(St, Ch) ->
               {debug, St#sth.debug},
               {hz, St#sth.hz},
               {timeout, St#sth.timeout},
+              {heartbeat_timeout, St#sth.heartbeat_timeout},
+              {job_timeout, St#sth.job_timeout},
               {seconds, St#sth.seconds}
              ],
     smoke_test_misc:do_one_child(St#sth.debug, smoke_test_child_supervisor,
