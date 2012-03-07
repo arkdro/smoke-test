@@ -168,8 +168,9 @@ prepare_all(L) ->
     Hz = proplists:get_value(hz, L),
     Seconds = proplists:get_value(seconds, L),
     Cnt = Seconds * Hz,
-    Bstr = base64:encode_to_string(crypto:rand_bytes(?BASE_LEN)),
-    Base = string:strip(Bstr, both, $=),
+    Bstr = base64:encode(crypto:rand_bytes(?BASE_LEN)),
+    Base_bin = binary:replace(Bstr, [<<"=">>, <<"/">>], <<"z">>, [global]),
+    Base = binary_to_list(Base_bin),
     #child{
           serv_tag = proplists:get_value(serv_tag, L),
           ses_sn = 0,
