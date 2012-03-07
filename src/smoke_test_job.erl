@@ -51,7 +51,7 @@
 %% @doc run xhr session
 %% @since 2012-03-06 20:59
 %%
--spec add_job(#req{}) -> ok.
+-spec add_job(#req{}) -> ok | error.
 
 add_job(#req{id=Id} = St) ->
     case open_session(St) of
@@ -59,7 +59,8 @@ add_job(#req{id=Id} = St) ->
             proceed_session(St, Data);
         {{error, Reason}, _} ->
             mpln_p_debug:pr({?MODULE, add_job, ?LINE, Id, self(), Reason},
-                            St#req.debug, run, 0)
+                            St#req.debug, run, 0),
+            error
     end.
 
 %%%----------------------------------------------------------------------------
@@ -209,6 +210,8 @@ proceed_session(#req{timeout=Time, id=Id} = St,
 %% @doc wait for the response which is either of heartbeat, close,
 %% source message
 %%
+-spec waiting_response(#req{}, tuple(), binary()) -> ok | error.
+
 waiting_response(#req{id=Id, heartbeat_timeout=Htime, timeout=Time} = St,
                  {Method, _Full_url, _Hdr, _Params} = Data, In_data) ->
     Req = make_req(Data),
@@ -227,7 +230,8 @@ waiting_response(#req{id=Id, heartbeat_timeout=Htime, timeout=Time} = St,
             ok;
         {error, Reason} ->
             mpln_p_debug:pr({?MODULE, 'waiting_response error', ?LINE,
-                             Id, self(), Reason}, St#req.debug, run, 0);
+                             Id, self(), Reason}, St#req.debug, run, 0),
+            error;
         _ ->
             waiting_response(St, Data, In_data)
     end.
