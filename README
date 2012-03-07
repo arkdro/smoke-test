@@ -1,4 +1,4 @@
-port of smoke-test.coffee from sockjs to erlang
+sort of loose port of smoke-test.coffee from sockjs to erlang
 
 tests:
 - for number of clients from 1 to N:
