@@ -258,18 +258,19 @@ prepare_log(Log) ->
 
 do_smoke_test(St, L) ->
     New = St#sth{
-            count = proplists:get_value(count, L),
-            timeout = proplists:get_value(timeout, L),
-            job_timeout = proplists:get_value(job_timeout, L),
-            heartbeat_timeout = proplists:get_value(heartbeat_timeout, L),
-            host = proplists:get_value(host, L),
-            url = proplists:get_value(url, L),
-            serv_tag = proplists:get_value(serv_tag, L),
-            hz = proplists:get_value(hz, L),
-            seconds = proplists:get_value(seconds, L)
+            count = proplists:get_value(count, L, St#sth.count),
+            timeout = proplists:get_value(timeout, L, St#sth.timeout),
+            job_timeout = proplists:get_value(job_timeout, L,
+                                              St#sth.job_timeout),
+            heartbeat_timeout = proplists:get_value(heartbeat_timeout, L,
+                                                    St#sth.heartbeat_timeout),
+            host = proplists:get_value(host, L, St#sth.host),
+            url = proplists:get_value(url, L, St#sth.url),
+            serv_tag = proplists:get_value(serv_tag, L, St#sth.serv_tag),
+            hz = proplists:get_value(hz, L, St#sth.hz),
+            seconds = proplists:get_value(seconds, L, St#sth.seconds)
            },
     do_smoke_test(New).
-    
 
 -spec do_smoke_test(#sth{}) -> #sth{}.
 
