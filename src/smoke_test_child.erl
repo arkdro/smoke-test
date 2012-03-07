@@ -36,6 +36,9 @@
 -export([start/0, start_link/0, start_link/1, stop/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
 -export([terminate/2, code_change/3]).
+-export([
+         job_result/4
+        ]).
 
 %%%----------------------------------------------------------------------------
 %%% Includes
@@ -89,6 +92,10 @@ handle_call(_N, _From, St) ->
 
 handle_cast(stop, St) ->
     {stop, normal, St};
+
+handle_cast({job_result, Id, Status, Dur}, St) ->
+    New = update_job_result(St, Id, Status, Dur),
+    {noreply, New};
 
 handle_cast(_, St) ->
     {noreply, St}.
@@ -155,6 +162,16 @@ start_link(Params) ->
 %%-----------------------------------------------------------------------------
 stop() ->
     gen_server:call(?MODULE, stop).
+
+%%-----------------------------------------------------------------------------
+%%
+%% @doc send job result
+%% @since 2012-03-07 17:58
+%%
+-spec job_result(pid(), reference(), ok | error, non_neg_integer()) -> ok.
+
+job_result(Pid, Id, Status, Dur) ->
+    gen_server:cast(Pid, {job_result, Id, Status, Dur}).
 
 %%%----------------------------------------------------------------------------
 %%% Internal functions
@@ -252,6 +269,7 @@ prepare_one_job(#child{serv_tag=Tag, ses_sn=Sn, ses_base=Sbase,
                 Ref, Time) ->
     Params = [
               {id, Ref},
+              {parent, self()},
               {serv_tag, Tag},
               {ses_sn, Sn},
               {ses_base, Sbase},
@@ -304,5 +322,26 @@ update_stat(#child{stat=Stat} = St, [J]) ->
     Dur = timer:now_diff(Now, J#chi.start) / 1000.0,
     Nstat = smoke_test_misc:update_stat(Stat, Dur),
     St#child{stat=Nstat}.
+
+%%-----------------------------------------------------------------------------
+%%
+%% @doc update duration and status for job
+%%
+update_job_result(#child{jobs=Jobs} = St, Id, Status, Dur) ->
+    F = fun(X) ->
+                update_one_job(X, Id, Status, Dur)
+        end,
+    New_jobs = lists:map(F, Jobs),
+    St#child{jobs=New_jobs}.
+
+%%-----------------------------------------------------------------------------
+%%
+%% @doc update one job with status and duration
+%%
+update_one_job(#chi{id=Id} = X, Id, Status, Dur) ->
+    X#chi{status=Status, dur=Dur};
+
+update_one_job(X, _, _, _) ->
+    X.
 
 %%-----------------------------------------------------------------------------
