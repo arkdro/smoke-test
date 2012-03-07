@@ -87,7 +87,10 @@ handle_cast(_, St) ->
     {noreply, St}.
 
 %%-----------------------------------------------------------------------------
-terminate(_, #req{id=Id} = State) ->
+terminate(_, #req{id=Id, status=Status, start=Start, parent=Pid} = State) ->
+    Now = now(),
+    Dur = timer:now_diff(Now, Start),
+    smoke_test_child:job_result(Pid, Id, Status, Dur),
     mpln_p_debug:pr({?MODULE, terminate, ?LINE, Id, self()},
         State#req.debug, run, 2),
     ok.
@@ -139,6 +142,8 @@ stop() ->
 
 prepare_all(L) ->
     #req{
+          start = now(),
+          parent = proplists:get_value(parent, L),
           id = proplists:get_value(id, L),
           serv_tag = proplists:get_value(serv_tag, L),
           ses_sn = proplists:get_value(ses_sn, L, 0),
@@ -153,8 +158,8 @@ prepare_all(L) ->
 
 %%-----------------------------------------------------------------------------
 add_job(St) ->
-    smoke_test_job:add_job(St),
+    Res = smoke_test_job:add_job(St),
     gen_server:cast(self(), stop),
-    St.
+    St#req{status=Res}.
 
 %%-----------------------------------------------------------------------------

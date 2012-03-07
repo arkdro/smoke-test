@@ -2,6 +2,9 @@
 -define(smoke_req, true).
 
 -record(req, {
+          start           :: tuple(), % now
+          parent          :: pid(),
+          status          :: ok | error, % job result
           id              :: reference(),
           serv_tag        :: string(),
           ses_sn          :: non_neg_integer(),
