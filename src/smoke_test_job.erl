@@ -141,12 +141,12 @@ open_session(#req{method=Msrc, url=Url, timeout=Time, id=Id,
     Data = {Method, Full_url, [], []},
     Req = make_req(Data),
     mpln_p_debug:pr({?MODULE, open_session, ?LINE, Req, Id, self()},
-                    St#req.debug, run, 2),
+                    St#req.debug, http, 2),
     Res = httpc:request(Method, Req,
         [{timeout, Time}, {connect_timeout, Time}],
         [{body_format, binary}]),
     mpln_p_debug:pr({?MODULE, open_session, ?LINE, Res, Id, self()},
-                    St#req.debug, run, 3),
+                    St#req.debug, http, 3),
     {check_open(Res), Data}.
 
 %%-----------------------------------------------------------------------------
@@ -194,14 +194,14 @@ proceed_session(#req{timeout=Time, id=Id} = St,
     Params = Msg,
     Req = make_req_encode({Method, Full_url ++ "_send", Hdr, Params}),
     mpln_p_debug:pr({?MODULE, proceed_session, ?LINE, Id, self(), Req},
-                    St#req.debug, run, 2),
+                    St#req.debug, http, 2),
     Res = httpc:request(Method, Req,
                         %% version needed here. Otherwise we get
                         %% {error,socket_closed_remotely}
         [{timeout, Time}, {connect_timeout, Time}, {version, "HTTP/1.0"}],
         [{body_format, binary}]),
     mpln_p_debug:pr({?MODULE, proceed_session, ?LINE, Id, self(), Res},
-                    St#req.debug, run, 3),
+                    St#req.debug, http, 3),
     waiting_response(St, {Method, Full_url, Hdr, []}, Params).
 
 %%-----------------------------------------------------------------------------
@@ -213,12 +213,12 @@ waiting_response(#req{id=Id, heartbeat_timeout=Htime, timeout=Time} = St,
                  {Method, _Full_url, _Hdr, _Params} = Data, In_data) ->
     Req = make_req(Data),
     mpln_p_debug:pr({?MODULE, waiting_response, ?LINE, Req, Id, self()},
-                    St#req.debug, run, 2),
+                    St#req.debug, http, 2),
     Res = httpc:request(Method, Req,
         [{timeout, Htime}, {connect_timeout, Time}],
         [{body_format, binary}]),
     mpln_p_debug:pr({?MODULE, waiting_response, ?LINE, Res, Id, self()},
-                    St#req.debug, run, 3),
+                    St#req.debug, http, 3),
     Info = extract_info(Res),
     case find_source(Info, In_data) of
         own ->
