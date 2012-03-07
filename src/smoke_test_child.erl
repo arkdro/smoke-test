@@ -124,8 +124,8 @@ handle_info(periodic_check, State) ->
     New = periodic_check(State),
     {noreply, New};
 
-handle_info({'DOWN', Mref, _, _, _}, #child{id=Id} = St) ->
-    mpln_p_debug:pr({?MODULE, info_down, ?LINE, Id, self(), Mref},
+handle_info({'DOWN', Mref, _, Obj, _}, #child{id=Id} = St) ->
+    mpln_p_debug:pr({?MODULE, info_down, ?LINE, Id, self(), Mref, Obj},
                     St#child.debug, run, 2),
     New = job_done(St, Mref),
     {noreply, New};
