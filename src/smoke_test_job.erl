@@ -166,10 +166,6 @@ create_message(#req{id=Id}) ->
     mpln_misc_web:make_term_binary(Id).
 
 %%-----------------------------------------------------------------------------
-create_params(Msg) ->
-    mochijson2:encode(Msg).
-
-%%-----------------------------------------------------------------------------
 %%
 %% @doc send a message and go to the waiting loop
 %%
@@ -192,7 +188,7 @@ proceed_session(#req{timeout=Time, id=Id} = St,
 
 %%-----------------------------------------------------------------------------
 waiting_response(#req{id=Id, heartbeat_timeout=Htime, timeout=Time} = St,
-                 {Method, _Full_url, _Hdr, Params} = Data, In_data) ->
+                 {Method, _Full_url, _Hdr, _Params} = Data, In_data) ->
     Req = make_req(Data),
     mpln_p_debug:pr({?MODULE, waiting_response, ?LINE, Req, Id, self()},
                     St#req.debug, run, 2),
@@ -203,18 +199,15 @@ waiting_response(#req{id=Id, heartbeat_timeout=Htime, timeout=Time} = St,
                     St#req.debug, run, 3),
     Info = extract_info(Res),
     case find_source(Info, In_data) of
-        heartbeat ->
-            waiting_response(St, Data, In_data);
-        unknown ->
-            waiting_response(St, Data, In_data);
         own ->
             mpln_p_debug:pr({?MODULE, 'waiting_response ok', ?LINE,
                              Id, self()}, St#req.debug, run, 2),
             ok;
         {error, Reason} ->
             mpln_p_debug:pr({?MODULE, 'waiting_response error', ?LINE,
-                             Id, self(), Reason}, St#req.debug, run, 0)
-
+                             Id, self(), Reason}, St#req.debug, run, 0);
+        _ ->
+            waiting_response(St, Data, In_data)
     end.
 
 %%-----------------------------------------------------------------------------
@@ -227,6 +220,9 @@ extract_payload(Data) ->
 %%-----------------------------------------------------------------------------
 find_source({ok, <<"h\n">>}, _Params) ->
     heartbeat;
+
+find_source({ok, <<"c[", _/binary>>}, _Params) ->
+    closed;
 
 find_source({ok, Info}, Params) ->
     Payload = extract_payload(Info),
