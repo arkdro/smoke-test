@@ -201,22 +201,20 @@ waiting_response(#req{id=Id, heartbeat_timeout=Htime, timeout=Time} = St,
         [{body_format, binary}]),
     mpln_p_debug:pr({?MODULE, waiting_response, ?LINE, Res, Id, self()},
                     St#req.debug, run, 3),
-    case extract_info(Res) of
-        {ok, <<"h\n">>} ->
-            % heartbeat
-            mpln_p_debug:pr({?MODULE, 'waiting_response heartbeat', ?LINE,
-                             Id, self()},
-                            St#req.debug, run, 3),
+    Info = extract_info(Res),
+    case find_source(Info, In_data) of
+        heartbeat ->
             waiting_response(St, Data, In_data);
-        {ok, Info} ->
-            Payload = extract_payload(Info),
-            Res_f = find_source(Payload, Params),
+        unknown ->
+            waiting_response(St, Data, In_data);
+        own ->
             mpln_p_debug:pr({?MODULE, 'waiting_response ok', ?LINE,
-                             Id, self(), Res_f, Info, Payload},
-                            St#req.debug, run, 4);
+                             Id, self()}, St#req.debug, run, 2),
+            ok;
         {error, Reason} ->
             mpln_p_debug:pr({?MODULE, 'waiting_response error', ?LINE,
                              Id, self(), Reason}, St#req.debug, run, 0)
+
     end.
 
 %%-----------------------------------------------------------------------------
@@ -227,8 +225,19 @@ extract_payload(Data) ->
     Data.
 
 %%-----------------------------------------------------------------------------
-find_source(Payload, Params) ->
-    false
-    .
+find_source({ok, <<"h\n">>}, _Params) ->
+    heartbeat;
+
+find_source({ok, Info}, Params) ->
+    Payload = extract_payload(Info),
+    case lists:member(Params, Payload) of
+        true ->
+            own;
+        false ->
+            unknown
+    end;
+
+find_source({error, Reason}, _Params) ->
+    {error, Reason}.
 
 %%-----------------------------------------------------------------------------
