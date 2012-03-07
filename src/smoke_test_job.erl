@@ -47,7 +47,10 @@
 %%%----------------------------------------------------------------------------
 %%% API
 %%%----------------------------------------------------------------------------
-
+%%
+%% @doc run xhr session
+%% @since 2012-03-06 20:59
+%%
 -spec add_job(#req{}) -> ok.
 
 add_job(#req{id=Id} = St) ->
@@ -62,6 +65,9 @@ add_job(#req{id=Id} = St) ->
 %%%----------------------------------------------------------------------------
 %%% Internal functions
 %%%----------------------------------------------------------------------------
+%%
+%% @doc create http request
+%%
 make_req({head, Url, Hdr, _Params}) ->
     {Url, Hdr};
 make_req({get, Url, Hdr, _Params}) ->
@@ -71,6 +77,9 @@ make_req({post, Url, Hdr, Params}) ->
     Body = make_body(Params),
     {Url, Hdr, Ctype, Body}.
 
+%%
+%% @doc create http request with json encoded binary body
+%%
 make_req_encode({post, Url, Hdr, Params}) ->
     Ctype = ?CTYPE,
     Body = make_body(Params),
@@ -79,10 +88,16 @@ make_req_encode({post, Url, Hdr, Params}) ->
     {Url, Hdr, Ctype, Bin}.
 
 %%-----------------------------------------------------------------------------
+%%
+%% @doc encode possible unicode chars to binary
+%%
 make_body(Pars) ->
     unicode:characters_to_binary(Pars).
 
 %%-----------------------------------------------------------------------------
+%%
+%% @doc make input string with method an atom and return one of allowed methods
+%%
 clean_method(Src) ->
     Str = mpln_misc_web:make_string(Src),
     clean_method_aux(string:to_lower(Str)).
@@ -92,6 +107,9 @@ clean_method_aux("get") ->  get;
 clean_method_aux(_) ->      post.
 
 %%-----------------------------------------------------------------------------
+%%
+%% @doc remove one leading '/' from string
+%%
 clean_url([$/ | Rest]) ->
     Rest;
 clean_url(Url) ->
@@ -187,6 +205,10 @@ proceed_session(#req{timeout=Time, id=Id} = St,
     waiting_response(St, {Method, Full_url, Hdr, []}, Params).
 
 %%-----------------------------------------------------------------------------
+%%
+%% @doc wait for the response which is either of heartbeat, close,
+%% source message
+%%
 waiting_response(#req{id=Id, heartbeat_timeout=Htime, timeout=Time} = St,
                  {Method, _Full_url, _Hdr, _Params} = Data, In_data) ->
     Req = make_req(Data),
@@ -211,6 +233,9 @@ waiting_response(#req{id=Id, heartbeat_timeout=Htime, timeout=Time} = St,
     end.
 
 %%-----------------------------------------------------------------------------
+%%
+%% @doc remove sockjs array framing and return payload
+%%
 extract_payload(<<"a", Rest/binary>>) ->
     mochijson2:decode(Rest);
 
@@ -218,6 +243,9 @@ extract_payload(Data) ->
     Data.
 
 %%-----------------------------------------------------------------------------
+%%
+%% @doc check the received data against the source message
+%%
 find_source({ok, <<"h\n">>}, _Params) ->
     heartbeat;
 
