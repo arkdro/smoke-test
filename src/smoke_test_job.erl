@@ -182,7 +182,9 @@ proceed_session(#req{timeout=Time, id=Id} = St,
     mpln_p_debug:pr({?MODULE, proceed_session, ?LINE, Id, self(), Req},
                     St#req.debug, run, 2),
     Res = httpc:request(Method, Req,
-        [{timeout, Time}, {connect_timeout, Time}],
+                        %% version needed here. Otherwise we get
+                        %% {error,socket_closed_remotely}
+        [{timeout, Time}, {connect_timeout, Time}, {version, "HTTP/1.0"}],
         [{body_format, binary}]),
     mpln_p_debug:pr({?MODULE, proceed_session, ?LINE, Id, self(), Res},
                     St#req.debug, run, 3),
