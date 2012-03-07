@@ -38,7 +38,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
 -export([terminate/2, code_change/3]).
 
--export([get_stat/0, st/0, st/5, send_stat/3, reset_stat/0]).
+-export([get_stat/0, st/0, st/1, send_stat/3, reset_stat/0]).
 
 %%%----------------------------------------------------------------------------
 %%% Includes
@@ -70,14 +70,13 @@ init(_) ->
 
 handle_call(run_smoke_test, _From, St) ->
     mpln_p_debug:pr({?MODULE, 'run_smoke_test', ?LINE}, St#sth.debug, run, 2),
-    Res = run_smoke_test(St),
+    Res = do_smoke_test(St),
     {reply, Res, St};
 
-handle_call({run_smoke_test, Url, Count, Hz, Dur, Timeout}, _From, St) ->
-    mpln_p_debug:pr({?MODULE, 'run_smoke_test par', ?LINE, Url, Count, Hz,
-                     Dur, Timeout}, St#sth.debug, run, 2),
-    Res = run_smoke_test(St#sth{url=Url, count=Count, hz=Hz, seconds=Dur,
-                               timeout=Timeout}),
+handle_call({run_smoke_test, List}, _From, St) ->
+    mpln_p_debug:pr({?MODULE, 'run_smoke_test par', ?LINE, List},
+                    St#sth.debug, run, 2),
+    Res = do_smoke_test(St, List),
     {reply, Res, St};
 
 handle_call(stop, _From, St) ->
@@ -195,11 +194,10 @@ get_stat() ->
 st() ->
     gen_server:call(?MODULE, run_smoke_test).
 
--spec st(string(), non_neg_integer(), non_neg_integer(),
-        non_neg_integer(), non_neg_integer()) -> string().
+-spec st([{atom(), any()}]) -> string().
 
-st(Url, Count, Hz, Dur, Timeout) ->
-    gen_server:call(?MODULE, {run_smoke_test, Url, Count, Hz, Dur, Timeout}).
+st(List) ->
+    gen_server:call(?MODULE, {run_smoke_test, List}).
 
 %%-----------------------------------------------------------------------------
 %%
@@ -256,9 +254,26 @@ prepare_log(Log) ->
 %%
 %% @doc spawns children to do test
 %%
--spec run_smoke_test(#sth{}) -> #sth{}.
+-spec do_smoke_test(#sth{}, [{atom(), any()}]) -> #sth{}.
 
-run_smoke_test(#sth{children = Ch} = St) ->
+do_smoke_test(St, L) ->
+    New = St#sth{
+            count = proplists:get_value(count, L),
+            timeout = proplists:get_value(timeout, L),
+            job_timeout = proplists:get_value(job_timeout, L),
+            heartbeat_timeout = proplists:get_value(heartbeat_timeout, L),
+            host = proplists:get_value(host, L),
+            url = proplists:get_value(url, L),
+            serv_tag = proplists:get_value(serv_tag, L),
+            hz = proplists:get_value(hz, L),
+            seconds = proplists:get_value(seconds, L)
+           },
+    do_smoke_test(New).
+    
+
+-spec do_smoke_test(#sth{}) -> #sth{}.
+
+do_smoke_test(#sth{children = Ch} = St) ->
     F = fun(_, Acc) ->
                 prepare_one_child(St, Acc)
         end,
