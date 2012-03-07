@@ -106,26 +106,26 @@ terminate(_, #child{id=Id} = State) ->
 %%
 -spec handle_info(any(), #child{}) -> {noreply, #child{}}.
 
-handle_info(last_job_timeout, St) ->
-    mpln_p_debug:pr({?MODULE, 'info_last_job_timeout', ?LINE},
+handle_info(last_job_timeout, #child{id=Id} = St) ->
+    mpln_p_debug:pr({?MODULE, 'info last_job_timeout', ?LINE, Id},
                     St#child.debug, run, 3),
     % we waited 1000/Hz + Timeout. All the jobs must be terminated by now.
     {stop, normal, St};
 
-handle_info({job_timeout, Id}, State) ->
-    mpln_p_debug:pr({?MODULE, 'info_job_timeout', ?LINE},
+handle_info({job_timeout, Jid}, #child{id=Id} = State) ->
+    mpln_p_debug:pr({?MODULE, 'info job_timeout', ?LINE, Id},
                     State#child.debug, run, 6),
-    New = stop_job(State, Id),
+    New = stop_job(State, Jid),
     {noreply, New};
 
-handle_info(periodic_check, State) ->
-    mpln_p_debug:pr({?MODULE, 'info_periodic_check', ?LINE},
+handle_info(periodic_check, #child{id=Id} = State) ->
+    mpln_p_debug:pr({?MODULE, 'info periodic_check', ?LINE, Id},
                     State#child.debug, run, 6),
     New = periodic_check(State),
     {noreply, New};
 
 handle_info({'DOWN', Mref, _, Obj, _}, #child{id=Id} = St) ->
-    mpln_p_debug:pr({?MODULE, info_down, ?LINE, Id, self(), Mref, Obj},
+    mpln_p_debug:pr({?MODULE, 'info down', ?LINE, Id, self(), Mref, Obj},
                     St#child.debug, run, 2),
     New = job_done(St, Mref),
     {noreply, New};
