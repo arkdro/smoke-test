@@ -191,12 +191,12 @@ prepare_all(L) ->
 
 %%-----------------------------------------------------------------------------
 %%
-%% @doc 
+%% @doc start job and start timer for it
 %%
 -spec periodic_check(#child{}) -> #child{}.
 
-periodic_check(#child{cnt=0, timeout=Timeout} = State) ->
-    erlang:send_after(Timeout, self(), last_job_timeout),
+periodic_check(#child{cnt=0, job_timeout=T} = State) ->
+    erlang:send_after(T, self(), last_job_timeout),
     State;
 
 periodic_check(#child{cnt=Cnt, hz=Hz, timer=Ref} = State) ->
@@ -230,7 +230,7 @@ stop_job(#child{jobs=Jobs} = St, Id) ->
 %%
 -spec add_job(#child{}) -> #child{}.
 
-add_job(#child{jobs=Jobs, timeout=T, ses_sn=Sn} = St) ->
+add_job(#child{jobs=Jobs, job_timeout=T, ses_sn=Sn} = St) ->
     Ref = make_ref(),
     case prepare_one_job(St, Ref, T) of
         [C] ->
@@ -247,7 +247,7 @@ add_job(#child{jobs=Jobs, timeout=T, ses_sn=Sn} = St) ->
 -spec prepare_one_job(#child{}, reference(), non_neg_integer()) -> [#chi{}].
 
 prepare_one_job(#child{serv_tag=Tag, ses_sn=Sn, ses_base=Sbase,
-                       job_timeout=Jtime, heartbeat_timeout=Htime,
+                       heartbeat_timeout=Htime,
                        host=Host} = St,
                 Ref, Time) ->
     Params = [
@@ -261,7 +261,6 @@ prepare_one_job(#child{serv_tag=Tag, ses_sn=Sn, ses_base=Sbase,
               {method, St#child.method},
               {params, make_params(St)},
               {heartbeat_timeout, Htime},
-              {job_timeout, Jtime},
               {timeout, Time}
              ],
     smoke_test_misc:do_one_child(St#child.debug,

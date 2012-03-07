@@ -12,7 +12,6 @@
           method          :: string(),
           params = []     :: list(),
           heartbeat_timeout :: non_neg_integer(),
-          job_timeout     :: non_neg_integer(),
           timeout         :: non_neg_integer()
                              }).
 
