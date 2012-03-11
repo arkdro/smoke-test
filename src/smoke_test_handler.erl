@@ -245,6 +245,9 @@ prepare_all() ->
         }.
 
 %%-----------------------------------------------------------------------------
+%%
+%% @doc prepare log file if it is defined
+%%
 prepare_log(undefined) ->
     ok;
 
@@ -363,9 +366,13 @@ get_result_stat(#sth{stat=Stat}) ->
     {{Count, Ok, Err, Sum, Sq}, {Avg, Dev_ub, Dev_b}}.
 
 %%-----------------------------------------------------------------------------
+%%
+%% @doc write statistic to log
+%%
 log_stats(#sth{stat=Stat} = State) ->
-    #stat{count=Count, sum=Sum, sum_sq=Sq} = Stat,
-    mpln_p_debug:pr({?MODULE, 'log_stats', ?LINE, 'src', Count, Sum, Sq},
+    #stat{count=Count, count_ok=Ok, count_error=Err, sum=Sum, sum_sq=Sq} = Stat,
+    mpln_p_debug:pr({?MODULE, 'log_stats', ?LINE, 'src',
+                     Count, Ok, Err, Sum, Sq},
                     State#sth.debug, run, 1),
     Res = get_result_stat(State),
     mpln_p_debug:pr({?MODULE, 'log_stats', ?LINE, 'res', Res},
