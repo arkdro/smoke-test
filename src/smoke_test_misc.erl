@@ -33,7 +33,7 @@
 %%% Exports
 %%%----------------------------------------------------------------------------
 
--export([do_one_child/4, update_stat/2, stop_child/3]).
+-export([do_one_child/4, update_stat/3, stop_child/3]).
 
 %%%----------------------------------------------------------------------------
 %%% Includes
@@ -87,10 +87,15 @@ do_one_child(Debug, Sup, Ch, Params) ->
 %%
 %% @doc updates job statistic
 %%
--spec update_stat(#stat{}, float()) -> #stat{}.
+-spec update_stat(#stat{}, ok | error, float()) -> #stat{}.
 
-update_stat(#stat{count=Count, sum=Sum, sum_sq=Sq} = Stat, Dur) ->
-    Stat#stat{count=Count+1, sum=Sum+Dur, sum_sq=Sq + Dur*Dur}.
+update_stat(#stat{count=Count, sum=Sum, sum_sq=Sq, count_ok=Ok} = Stat, ok,
+            Dur) ->
+    Stat#stat{count=Count+1, sum=Sum+Dur, sum_sq=Sq + Dur*Dur, count_ok=Ok+1};
+
+update_stat(#stat{count=Count, sum=Sum, sum_sq=Sq, count_error=E} = Stat, error,
+            Dur) ->
+    Stat#stat{count=Count+1, sum=Sum+Dur, sum_sq=Sq + Dur*Dur, count_error=E+1}.
 
 %%%----------------------------------------------------------------------------
 %%% Internal functions

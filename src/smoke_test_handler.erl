@@ -38,7 +38,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
 -export([terminate/2, code_change/3]).
 
--export([get_stat/0, st/0, st/1, send_stat/3, reset_stat/0]).
+-export([get_stat/0, st/0, st/1, send_stat/5, reset_stat/0]).
 
 %%%----------------------------------------------------------------------------
 %%% Includes
@@ -107,10 +107,10 @@ handle_cast(reset_stat, St) ->
     New = St#sth{stat=#stat{}},
     {noreply, New};
 
-handle_cast({smoke_test_result, Count, Sum, Sq}, St) ->
-    mpln_p_debug:pr({?MODULE, 'cast result', ?LINE, Count, Sum, Sq},
+handle_cast({smoke_test_result, Count, Ok, Err, Sum, Sq}, St) ->
+    mpln_p_debug:pr({?MODULE, 'cast result', ?LINE, Count, Ok, Err, Sum, Sq},
                     St#sth.debug, run, 2),
-    New = store_test_result(St, Count, Sum, Sq),
+    New = store_test_result(St, Count, Ok, Err, Sum, Sq),
     {noreply, New};
 
 handle_cast(_N, St) ->
@@ -180,7 +180,7 @@ stop() ->
 %%
 %% @doc asks smoke_test_handler for state of queues
 %%
--spec get_stat() -> string().
+-spec get_stat() -> {tuple(), tuple()}.
 
 get_stat() ->
     gen_server:call(?MODULE, get_stat).
@@ -203,10 +203,11 @@ st(List) ->
 %%
 %% @doc sends one child statistic to gen_server
 %%
--spec send_stat(non_neg_integer(), float(), float()) -> ok.
+-spec send_stat(non_neg_integer(), non_neg_integer(), non_neg_integer(),
+                float(), float()) -> ok.
 
-send_stat(Count, Sum, Sq) ->
-    gen_server:cast(?MODULE, {smoke_test_result, Count, Sum, Sq}).
+send_stat(Count, Ok, Err, Sum, Sq) ->
+    gen_server:cast(?MODULE, {smoke_test_result, Count, Ok, Err, Sum, Sq}).
 
 %%-----------------------------------------------------------------------------
 %%
@@ -323,14 +324,20 @@ clean_child(#sth{children = Ch} = St, Mref) ->
 %%
 %% @doc stores result of test into the state
 %%
-store_test_result(#sth{stat=Stat} = St, Count, Sum, Sq) ->
-    #stat{count=Count0, sum=Sum0, sum_sq=Sq0} = Stat,
-    Nstat = Stat#stat{count=Count0+Count, sum=Sum0+Sum, sum_sq=Sq0+Sq},
+store_test_result(#sth{stat=Stat} = St, Count, Ok, Err, Sum, Sq) ->
+    #stat{count=Count0, count_ok=Ok0, count_error=Err0,
+          sum=Sum0, sum_sq=Sq0} = Stat,
+    Nstat = Stat#stat{count=Count0+Count, count_ok=Ok0+Ok,
+                      count_error=Err0+Err,
+                      sum=Sum0+Sum, sum_sq=Sq0+Sq},
     St#sth{stat=Nstat}.
 
 %%-----------------------------------------------------------------------------
+%%
+%% @doc return the accumulated statistic for jobs
+%%
 get_result_stat(#sth{stat=Stat}) ->
-    #stat{count=Count, sum=Sum, sum_sq=Sq} = Stat,
+    #stat{count=Count, count_ok=Ok, count_error=Err, sum=Sum, sum_sq=Sq} = Stat,
     {Avg, Dev_ub, Dev_b} =
         if Count > 1 ->
                 Avg0 = Sum / Count,
@@ -349,7 +356,7 @@ get_result_stat(#sth{stat=Stat}) ->
            true ->
                 {undefined, undefined, undefined}
         end,
-    {{Count, Sum, Sq}, {Avg, Dev_ub, Dev_b}}.
+    {{Count, Ok, Err, Sum, Sq}, {Avg, Dev_ub, Dev_b}}.
 
 %%-----------------------------------------------------------------------------
 log_stats(#sth{stat=Stat} = State) ->

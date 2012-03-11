@@ -290,8 +290,8 @@ prepare_one_job(#child{serv_tag=Tag, ses_sn=Sn, ses_base=Sbase,
 %% @doc sends job statistic to the handler
 %%
 send_stat(#child{stat=Stat}) ->
-    #stat{count=Count, sum=Sum, sum_sq=Sq} = Stat,
-    smoke_test_handler:send_stat(Count, Sum, Sq).
+    #stat{count=Count, count_ok=Ok, count_error=Err, sum=Sum, sum_sq=Sq} = Stat,
+    smoke_test_handler:send_stat(Count, Ok, Err, Sum, Sq).
 
 %%-----------------------------------------------------------------------------
 make_params(St) ->
@@ -300,7 +300,7 @@ make_params(St) ->
 
 %%-----------------------------------------------------------------------------
 %%
-%% @doc updates stat for the job and removes it from the list of jobs
+%% @doc updates stat for the terminated job and removes it from the list of jobs
 %%
 job_done(#child{jobs=Jobs} = St, Mref) ->
     F = fun(#chi{mon=X}) ->
@@ -317,10 +317,17 @@ job_done(#child{jobs=Jobs} = St, Mref) ->
 update_stat(St, []) ->
     St;
 
-update_stat(#child{stat=Stat} = St, [J]) ->
+update_stat(St, [#chi{dur=D} = J]) when is_integer(D) ->
+    Dur = D / 1000.0,
+    proceed_update_stat(St, J, Dur);
+
+update_stat(St, [J]) ->
     Now = now(),
     Dur = timer:now_diff(Now, J#chi.start) / 1000.0,
-    Nstat = smoke_test_misc:update_stat(Stat, Dur),
+    proceed_update_stat(St, J, Dur).
+
+proceed_update_stat(#child{stat=Stat} = St, J, Dur) ->
+    Nstat = smoke_test_misc:update_stat(Stat, J#chi.status, Dur),
     St#child{stat=Nstat}.
 
 %%-----------------------------------------------------------------------------
