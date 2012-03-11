@@ -136,6 +136,7 @@ terminate(_, State) ->
 handle_info({'DOWN', Mref, _, _Oid, _Info} = Msg, St) ->
     mpln_p_debug:pr({?MODULE, 'info_down', ?LINE, Msg}, St#sth.debug, run, 2),
     New = clean_child(St, Mref),
+    log_result(New),
     {noreply, New};
 
 handle_info(_Req, State) ->
@@ -377,5 +378,15 @@ log_stats(#sth{stat=Stat} = State) ->
     Res = get_result_stat(State),
     mpln_p_debug:pr({?MODULE, 'log_stats', ?LINE, 'res', Res},
                     State#sth.debug, run, 1).
+
+%%-----------------------------------------------------------------------------
+%%
+%% @doc log resulting statistic when there are no more children
+%%
+log_result(#sth{children=[]} = St) ->
+    log_stats(St);
+
+log_result(_) ->
+    ok.
 
 %%-----------------------------------------------------------------------------

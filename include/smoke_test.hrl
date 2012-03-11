@@ -28,7 +28,7 @@
 -record(sth, {
           stat = #stat{} :: #stat{},
           debug    = []  :: [atom()],
-          children = []  :: [pid()],
+          children = []  :: [#chi{}],
           count          :: non_neg_integer(),
           timeout        :: non_neg_integer(), % timeout for one job
           job_timeout :: non_neg_integer(), % max job duration
