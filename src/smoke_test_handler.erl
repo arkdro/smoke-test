@@ -70,14 +70,14 @@ init(_) ->
 
 handle_call(run_smoke_test, _From, St) ->
     mpln_p_debug:pr({?MODULE, 'run_smoke_test', ?LINE}, St#sth.debug, run, 2),
-    Res = do_smoke_test(St),
-    {reply, Res, St};
+    New = do_smoke_test(St),
+    {reply, ok, New};
 
 handle_call({run_smoke_test, List}, _From, St) ->
     mpln_p_debug:pr({?MODULE, 'run_smoke_test par', ?LINE, List},
                     St#sth.debug, run, 2),
-    Res = do_smoke_test(St, List),
-    {reply, Res, St};
+    New = do_smoke_test(St, List),
+    {reply, ok, New};
 
 handle_call(stop, _From, St) ->
     {stop, normal, ok, St};
@@ -253,7 +253,7 @@ prepare_log(Log) ->
 
 %%-----------------------------------------------------------------------------
 %%
-%% @doc spawns children to do test
+%% @doc spawns children to do test using provided parameters
 %%
 -spec do_smoke_test(#sth{}, [{atom(), any()}]) -> #sth{}.
 
@@ -271,8 +271,12 @@ do_smoke_test(St, L) ->
             hz = proplists:get_value(hz, L, St#sth.hz),
             seconds = proplists:get_value(seconds, L, St#sth.seconds)
            },
-    do_smoke_test(New).
+    #sth{children = Ch} = do_smoke_test(New),
+    St#sth{children = Ch}.
 
+%%
+%% @doc spawns children to do test using parameters configured in app file
+%%
 -spec do_smoke_test(#sth{}) -> #sth{}.
 
 do_smoke_test(#sth{children = Ch} = St) ->
